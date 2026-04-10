@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { db } = require("./firebase");
-const { ref, push } = require("firebase/database");
+const { ref, push, get } = require("firebase/database");
 
 const app = express();
 const PORT = 3000;
@@ -23,6 +23,22 @@ app.post("/send", async (req, res) => {
   } catch (error) {
     console.error("Error saving data:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/data", async (req, res) => {
+  try {
+    const dataRef = ref(db, "data");
+    const snapshot = await get(dataRef);
+
+    if (snapshot.exists()) {
+      res.status(200).json({ success: true, data: snapshot.val() });
+    } else {
+      res.status(200).json({ success: true, data: {} });
+    }
+  } catch (error) {
+    console.error("Error retrieving data:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
