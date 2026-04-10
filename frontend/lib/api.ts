@@ -1,14 +1,34 @@
 import { TemperatureReading, Alert, AlertSeverity } from './types';
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://edi-api-one.vercel.app').replace(/\/$/, '');
+
+function toNumber(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeReading(raw: any): TemperatureReading {
+  return {
+    id: String(raw?.id ?? ''),
+    medicineId: String(raw?.medicineId ?? raw?.id ?? ''),
+    medicineName: String(raw?.medicineName ?? raw?.name ?? 'N/A'),
+    temperature: toNumber(raw?.temperature, 0),
+    humidity: toNumber(raw?.humidity, 0),
+    timestamp: String(raw?.timestamp ?? raw?.createdAt ?? new Date().toISOString()),
+    location: raw?.location,
+    expiryDate: raw?.expiryDate,
+    batchNumber: raw?.batchNumber,
+  };
+}
 
 // Fetch all data from Firebase
 export async function fetchAllData(): Promise<TemperatureReading[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/all`);
+    const response = await fetch(`${API_BASE_URL}/data`);
     if (!response.ok) throw new Error('Failed to fetch data');
     const data = await response.json();
-    return Array.isArray(data) ? data : data.data || [];
+    const records = Array.isArray(data) ? data : data.data || [];
+    return records.map(normalizeReading);
   } catch (error) {
     console.error('Error fetching all data:', error);
     return [];
@@ -21,7 +41,8 @@ export async function fetchDataByDate(date: string): Promise<TemperatureReading[
     const response = await fetch(`${API_BASE_URL}/data/filter?date=${date}`);
     if (!response.ok) throw new Error('Failed to fetch data by date');
     const data = await response.json();
-    return Array.isArray(data) ? data : data.data || [];
+    const records = Array.isArray(data) ? data : data.data || [];
+    return records.map(normalizeReading);
   } catch (error) {
     console.error('Error fetching data by date:', error);
     return [];
@@ -34,7 +55,8 @@ export async function fetchDataById(id: string): Promise<TemperatureReading | nu
     const response = await fetch(`${API_BASE_URL}/data/${id}`);
     if (!response.ok) throw new Error('Failed to fetch data by ID');
     const data = await response.json();
-    return data || null;
+    const record = data?.data ?? data;
+    return record ? normalizeReading(record) : null;
   } catch (error) {
     console.error('Error fetching data by ID:', error);
     return null;
